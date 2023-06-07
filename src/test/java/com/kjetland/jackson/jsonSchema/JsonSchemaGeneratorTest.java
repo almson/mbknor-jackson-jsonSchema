@@ -187,8 +187,8 @@ public class JsonSchemaGeneratorTest {
             assertNullableType(schema, "/properties/pojoValue", "boolean");
             assertNullableDefaultValues(schema);
 
-            assertNullableChild1(schema, "/properties/child/oneOf/1/oneOf", true);
-            assertNullableChild2(schema, "/properties/child/oneOf/1/oneOf", true);
+            assertNullableChild1(schema, "/properties/child/oneOf", true);
+            assertNullableChild2(schema, "/properties/child/oneOf", true);
         }
 
         //Using fully-qualified class names;
@@ -213,8 +213,8 @@ public class JsonSchemaGeneratorTest {
             assertNullableType(schema, "/properties/pojoValue", "boolean");
             assertNullableDefaultValues(schema);
 
-            assertNullableChild1(schema, "/properties/child/oneOf/1/oneOf", "com.kjetland.jackson.jsonSchema.testData.polymorphism1.Child1");
-            assertNullableChild2(schema, "/properties/child/oneOf/1/oneOf", "com.kjetland.jackson.jsonSchema.testData.polymorphism1.Child2");
+            assertNullableChild1(schema, "/properties/child/oneOf", "com.kjetland.jackson.jsonSchema.testData.polymorphism1.Child1");
+            assertNullableChild2(schema, "/properties/child/oneOf", "com.kjetland.jackson.jsonSchema.testData.polymorphism1.Child2");
         }
     }
     
@@ -232,7 +232,7 @@ public class JsonSchemaGeneratorTest {
         assertEquals (schema.at("/properties/stringWithDefault/oneOf/0/type").asText(), "null");
         assertEquals (schema.at("/properties/stringWithDefault/oneOf/0/title").asText(), "Not included");
         assertEquals (schema.at("/properties/stringWithDefault/oneOf/1/type").asText(), "string");
-        assertEquals (schema.at("/properties/stringWithDefault/oneOf/1/default").asText(), "x");
+        assertEquals (schema.at("/properties/stringWithDefault/default").asText(), "x");
 
         assertEquals (schema.at("/properties/intWithDefault/type").asText(), "integer");
         assertEquals (schema.at("/properties/intWithDefault/default").asInt(), 12);
@@ -526,7 +526,7 @@ public class JsonSchemaGeneratorTest {
         assertNullableType(child1, "/properties/_child1String3", "string");
 
         assertNullableType(schema, "/properties/optionalList", "array");
-        assertEquals (schema.at("/properties/optionalList/oneOf/1/items/$ref").asText(), "#/definitions/ClassNotExtendingAnything");
+        assertEquals (schema.at("/properties/optionalList/items/$ref").asText(), "#/definitions/ClassNotExtendingAnything");
     }
 
     @Test void customSerializerNotOverridingJsonSerializer_acceptJsonFormatVisitor() {
@@ -588,25 +588,25 @@ public class JsonSchemaGeneratorTest {
         var schema = generateAndValidateSchema(jsonSchemaGeneratorNullable, testData.pojoWithArraysNullable.getClass(), jsonNode);
 
         assertNullableType(schema, "/properties/intArray1", "array");
-        assertEquals (schema.at("/properties/intArray1/oneOf/1/items/type").asText(), "integer");
+        assertEquals (schema.at("/properties/intArray1/items/type").asText(), "integer");
 
         assertNullableType(schema, "/properties/stringArray", "array");
-        assertEquals (schema.at("/properties/stringArray/oneOf/1/items/type").asText(), "string");
+        assertEquals (schema.at("/properties/stringArray/items/type").asText(), "string");
 
         assertNullableType(schema, "/properties/stringList", "array");
-        assertEquals (schema.at("/properties/stringList/oneOf/1/items/type").asText(), "string");
+        assertEquals (schema.at("/properties/stringList/items/type").asText(), "string");
 
         assertNullableType(schema, "/properties/polymorphismList", "array");
-        assertNullableChild1(schema, "/properties/polymorphismList/oneOf/1/items/oneOf");
-        assertNullableChild2(schema, "/properties/polymorphismList/oneOf/1/items/oneOf");
+        assertNullableChild1(schema, "/properties/polymorphismList/items/oneOf");
+        assertNullableChild2(schema, "/properties/polymorphismList/items/oneOf");
 
         assertNullableType(schema, "/properties/polymorphismArray", "array");
-        assertNullableChild1(schema, "/properties/polymorphismArray/oneOf/1/items/oneOf");
-        assertNullableChild2(schema, "/properties/polymorphismArray/oneOf/1/items/oneOf");
+        assertNullableChild1(schema, "/properties/polymorphismArray/items/oneOf");
+        assertNullableChild2(schema, "/properties/polymorphismArray/items/oneOf");
 
         assertNullableType(schema, "/properties/listOfListOfStrings", "array");
-        assertEquals (schema.at("/properties/listOfListOfStrings/oneOf/1/items/type").asText(), "array");
-        assertEquals (schema.at("/properties/listOfListOfStrings/oneOf/1/items/items/type").asText(), "string");
+        assertEquals (schema.at("/properties/listOfListOfStrings/items/type").asText(), "array");
+        assertEquals (schema.at("/properties/listOfListOfStrings/items/items/type").asText(), "string");
     }
 
     @Test void recursivePojo() {
@@ -632,11 +632,11 @@ public class JsonSchemaGeneratorTest {
         assertNullableType(schema, "/properties/myText", "string");
 
         assertNullableType(schema, "/properties/children", "array");
-        var defViaRef = getNodeViaRefs(schema, schema.at("/properties/children/oneOf/1/items"), "RecursivePojo");
+        var defViaRef = getNodeViaRefs(schema, schema.at("/properties/children/items"), "RecursivePojo");
 
         assertNullableType(defViaRef, "/properties/myText", "string");
         assertNullableType(defViaRef, "/properties/children", "array");
-        var defViaRef2 = getNodeViaRefs(schema, defViaRef.at("/properties/children/oneOf/1/items"), "RecursivePojo");
+        var defViaRef2 = getNodeViaRefs(schema, defViaRef.at("/properties/children/items"), "RecursivePojo");
 
         assertEquals (defViaRef, defViaRef2);
     }
@@ -661,14 +661,14 @@ public class JsonSchemaGeneratorTest {
         var schema = generateAndValidateSchema(jsonSchemaGeneratorNullable, testData.pojoUsingMaps.getClass(), jsonNode);
 
         assertNullableType(schema, "/properties/string2Integer", "object");
-        assertEquals (schema.at("/properties/string2Integer/oneOf/1/additionalProperties/type").asText(), "integer");
+        assertEquals (schema.at("/properties/string2Integer/additionalProperties/type").asText(), "integer");
 
         assertNullableType(schema, "/properties/string2String", "object");
-        assertEquals (schema.at("/properties/string2String/oneOf/1/additionalProperties/type").asText(), "string");
+        assertEquals (schema.at("/properties/string2String/additionalProperties/type").asText(), "string");
 
         assertNullableType(schema, "/properties/string2PojoUsingJsonTypeInfo", "object");
-        assertEquals (schema.at("/properties/string2PojoUsingJsonTypeInfo/oneOf/1/additionalProperties/oneOf/0/$ref").asText(), "#/definitions/Child1");
-        assertEquals (schema.at("/properties/string2PojoUsingJsonTypeInfo/oneOf/1/additionalProperties/oneOf/1/$ref").asText(), "#/definitions/Child2");
+        assertEquals (schema.at("/properties/string2PojoUsingJsonTypeInfo/additionalProperties/oneOf/0/$ref").asText(), "#/definitions/Child1");
+        assertEquals (schema.at("/properties/string2PojoUsingJsonTypeInfo/additionalProperties/oneOf/1/$ref").asText(), "#/definitions/Child2");
     }
 
     @Test void pojoUsingCustomAnnotations() {
@@ -694,7 +694,7 @@ public class JsonSchemaGeneratorTest {
         assertEquals (schema.at("/properties/dateTime/format").asText(), "date-time");
         assertEquals (schema.at("/properties/dateTime/description").asText(), "This is description from @JsonPropertyDescription");
         assertEquals (schemaHTML5Date.at("/properties/dateTime/format").asText(), "datetime");
-        assertEquals (schemaHTML5DateNullable.at("/properties/dateTime/oneOf/1/format").asText(), "datetime");
+        assertEquals (schemaHTML5DateNullable.at("/properties/dateTime/format").asText(), "datetime");
 
 
         assertEquals (schema.at("/properties/dateTimeWithAnnotation/type").asText(), "string");
@@ -767,7 +767,7 @@ public class JsonSchemaGeneratorTest {
         assertEquals (child1.at("/properties/_child1String3/type").asText(), "string");
 
         assertNullableType(schema, "/properties/optionalList", "array");
-        assertEquals (schema.at("/properties/optionalList/oneOf/1/items/$ref").asText(), "#/definitions/ClassNotExtendingAnything");
+        assertEquals (schema.at("/properties/optionalList/items/$ref").asText(), "#/definitions/ClassNotExtendingAnything");
         assertEquals (schema.at("/properties/optionalList/title").asText(), "Optional List");
     }
 
@@ -791,7 +791,7 @@ public class JsonSchemaGeneratorTest {
         assertPropertyRequired(child1, "_child1String3", true);
 
         assertNullableType(schema, "/properties/optionalList", "array");
-        assertEquals (schema.at("/properties/optionalList/oneOf/1/items/$ref").asText(), "#/definitions/ClassNotExtendingAnything");
+        assertEquals (schema.at("/properties/optionalList/items/$ref").asText(), "#/definitions/ClassNotExtendingAnything");
         assertEquals (schema.at("/properties/optionalList/title").asText(), "Optional List");
     }
 

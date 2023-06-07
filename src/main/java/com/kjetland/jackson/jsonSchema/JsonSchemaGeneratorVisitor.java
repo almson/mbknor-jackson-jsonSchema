@@ -22,6 +22,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import javax.validation.Path.Node;
 import javax.validation.constraints.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -93,7 +94,10 @@ class JsonSchemaGeneratorVisitor extends AbstractJsonFormatVisitorWithSerializer
             var enumValuesNode = JsonNodeFactory.instance.arrayNode();
             for (var e : enums)
                 enumValuesNode.add(e);
-            node.set("enum", enumValuesNode);
+            if (node.get("oneOf") == null)
+                node.set("enum", enumValuesNode);
+            else
+                ((ObjectNode)node.get("oneOf").get(1)).set("enum", enumValuesNode);
         }
         
         @Override public void numberType(JsonParser.NumberType type) {
@@ -105,7 +109,7 @@ class JsonSchemaGeneratorVisitor extends AbstractJsonFormatVisitorWithSerializer
     public JsonStringFormatVisitor expectStringFormat(JavaType type) {
         log.trace("expectStringFormat {}", type);
 
-        node.put("type", "string");
+        addType("string");
 
         var notBlankAnnotation = tryGetAnnotation(NotBlank.class);
         if (notBlankAnnotation != null)
@@ -164,7 +168,7 @@ class JsonSchemaGeneratorVisitor extends AbstractJsonFormatVisitorWithSerializer
     public JsonArrayFormatVisitor expectArrayFormat(JavaType type) {
         log.trace("expectArrayFormat {}", type);
 
-        node.put("type", "array");
+        addType("array");
 
         if (ctx.config.uniqueItemClasses.stream().anyMatch(c -> type.getRawClass().isAssignableFrom(c))) {
             // Adding '"uniqueItems": true' to be used with https://github.com/jdorn/json-editor
@@ -222,7 +226,7 @@ class JsonSchemaGeneratorVisitor extends AbstractJsonFormatVisitorWithSerializer
     public JsonNumberFormatVisitor expectNumberFormat(JavaType type) {
         log.trace("expectNumberFormat");
 
-        node.put("type", "number");
+        addType("number");
 
         // Look for @Min, @Max, @DecimalMin, @DecimalMax => minimum, maximum
         var minAnnotation = tryGetAnnotation(Min.class);
@@ -271,7 +275,7 @@ class JsonSchemaGeneratorVisitor extends AbstractJsonFormatVisitorWithSerializer
     public JsonIntegerFormatVisitor expectIntegerFormat(JavaType type) {
         log.trace("expectIntegerFormat");
 
-        node.put("type", "integer");
+        addType("integer");
 
         var minAnnotation = tryGetAnnotation(Min.class);
         if (minAnnotation != null)
@@ -301,14 +305,14 @@ class JsonSchemaGeneratorVisitor extends AbstractJsonFormatVisitorWithSerializer
 
     @Override public JsonNullFormatVisitor expectNullFormat(JavaType type) {
         log.trace("expectNullFormat {}", type);
-        node.put("type", "null");
+        addType("null");
         return new JsonNullFormatVisitor.Base();
     }
 
     @Override public JsonBooleanFormatVisitor expectBooleanFormat(JavaType type) {
         log.trace("expectBooleanFormat");
 
-        node.put("type", "boolean");
+        addType("boolean");
 
         var defaultValue = extractDefaultValue();
         if (defaultValue != null)
@@ -324,7 +328,7 @@ class JsonSchemaGeneratorVisitor extends AbstractJsonFormatVisitorWithSerializer
         // So we're going to treat it as type=object with additionalProperties = true,
         // so that it can hold whatever the map can hold
 
-        node.put("type", "object");
+        addType("object");
 
         // If we're annotated with @NotEmpty, make sure we add a minItems of 1 to our schema here.
         var notEmptyAnnotation = tryGetAnnotation(NotEmpty.class);
@@ -453,7 +457,9 @@ class JsonSchemaGeneratorVisitor extends AbstractJsonFormatVisitorWithSerializer
             // We have subtypes
             //log.trace("polymorphism - subTypes: $subTypes")
 
-            var anyOfArrayNode = JsonNodeFactory.instance.arrayNode();
+            var anyOfArrayNode = (ArrayNode) node.get("oneOf");
+            if (anyOfArrayNode == null)
+                anyOfArrayNode = JsonNodeFactory.instance.arrayNode();
             node.set("oneOf", anyOfArrayNode);
 
             for (var subType : subTypes) {
@@ -485,7 +491,7 @@ class JsonSchemaGeneratorVisitor extends AbstractJsonFormatVisitorWithSerializer
                 DefinitionInfo definitionInfo = definitionsHandler.getOrCreateDefinition(type, this::objectBuilder);
 
                 if (definitionInfo.ref() != null)
-                    node.put("$ref", definitionInfo.ref());
+                    addType("$ref", definitionInfo.ref());
 
                 return definitionInfo.jsonObjectFormatVisitor();
             }
@@ -666,6 +672,7 @@ class JsonSchemaGeneratorVisitor extends AbstractJsonFormatVisitorWithSerializer
 
                     if ((ctx.config.useOneOfForNullables && nullable) || (ctx.config.useOneOfForOption && optionalType)) {
                         // We support this type being null, insert a oneOf consisting of a sentinel "null" and the real type.
+                        // Types that can not be null: primitives, @NotNull annotations, @JsonProperty annotations marked required etc.
                         var oneOfArray = JsonNodeFactory.instance.arrayNode();
                         node.set("oneOf", oneOfArray);
 
@@ -674,17 +681,8 @@ class JsonSchemaGeneratorVisitor extends AbstractJsonFormatVisitorWithSerializer
                         oneOfNull.put("type", "null");
                         oneOfNull.put("title", "Not included");
                         oneOfArray.add(oneOfNull);
-
-                        // If our nullable/optional type has a value, it'll be this.
-                        var oneOfReal = JsonNodeFactory.instance.objectNode();
-                        oneOfArray.add(oneOfReal);
-
-                        // Return oneOfReal which, from now on, will be used as the node representing this property
-                        thisPropertyNode = new PropertyNode(oneOfReal, node);
-                    } else {
-                        // Our type must not be null: primitives, @NotNull annotations, @JsonProperty annotations marked required etc.
-                        thisPropertyNode = new PropertyNode(node, node);
                     }
+                    thisPropertyNode = new PropertyNode(node, node);
                 }
 
                 // Continue processing this property
@@ -793,5 +791,22 @@ class JsonSchemaGeneratorVisitor extends AbstractJsonFormatVisitorWithSerializer
         }
             
         return new MyObjectVisitor();
+    }
+    
+    private void addType(String type) {
+        addType("type", type);
+    }
+    
+    private void addType(String prop, String type) {
+        var anyOfArrayNode = (ArrayNode) node.get("oneOf");
+        if (anyOfArrayNode != null) {
+            if (type .equals ("null"))
+                return;
+            var obj = JsonNodeFactory.instance.objectNode();
+            obj.put(prop, type);
+            anyOfArrayNode.add(obj);
+        }
+        else
+            node.put(prop, type);
     }
 }

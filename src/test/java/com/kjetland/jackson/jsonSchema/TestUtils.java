@@ -190,7 +190,9 @@ public final class TestUtils {
           arrayItemNodes.add((ObjectNode)child);
       
       var ref = arrayItemNodes.stream()
-              .map(a -> a.get("$ref").asText().substring(1))
+              .map(a -> a.get("$ref"))
+              .filter(a -> a != null)
+              .map(a -> a.asText().substring(1))
               .filter(a -> a.endsWith("/"+definitionName+""))
               .findFirst().get();
       
