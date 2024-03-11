@@ -18,6 +18,7 @@ import com.kjetland.jackson.jsonSchema.DefinitionsHandler.DefinitionInfo;
 import com.kjetland.jackson.jsonSchema.annotations.*;
 import java.lang.annotation.Annotation;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -287,7 +288,12 @@ class JsonSchemaGeneratorVisitor extends AbstractJsonFormatVisitorWithSerializer
 
         var defaultValue = extractDefaultValue();
         if (defaultValue != null)
-            node.put("default", Integer.valueOf(defaultValue));
+            // Unfortunately we can't know here if the type is actually nullable
+            // but if that's the default value then assume it is.
+            if (Objects.equals(defaultValue, "null"))
+                node.put("default", "null");
+            else
+                node.put("default", Integer.valueOf(defaultValue));
 
         if (currentProperty != null) {
             var examplesAnnotation = currentProperty.getAnnotation(JsonSchemaExamples.class);
